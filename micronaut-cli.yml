@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: org.evoting
+testFramework: junit
+sourceLanguage: java
+buildTool: gradle
+features: [ app-name, buildless, cache-caffeine, graalvm, gradle, http-client-test, java, java-application, junit, junit-params, junit-platform-suite-engine, logback, lombok, micronaut-aot, micronaut-build, micronaut-http-validation, netty-server, properties, readme, security, security-annotations, security-jwt, security-session, serialization-jackson, shade, static-resources ]
