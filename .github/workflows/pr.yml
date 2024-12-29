@@ -1,0 +1,93 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+# This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
+
+name: Parse branch name and pr and also gradle build
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  parse_branch_name:
+    runs-on: self-hosted
+    name: Parse branch and PR name
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check if PR target branch is ok
+        run: |
+          branch_name=${GITHUB_HEAD_REF}
+          echo "pr branch name: $branch_name"
+
+          target_branch=${GITHUB_BASE_REF}
+          echo "target branch: $target_branch"
+          dev_regex="^(fix|feat|refactor|style)/.*$"
+
+          if [[ "$branch_name" =~ $dev_regex ]]; then
+            echo "Branch name matches with regex pattern."
+          else
+            echo "Branch name does not match with regex."
+            exit 1
+          fi
+        shell: bash
+      - name: Parse pr name
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pullRequestTitle = context.payload.pull_request.title;
+            console.log(`Pull request title: ${pullRequestTitle}`);
+            const pattern = /^(feat|fix|refactor|style): .{1,50}/;
+
+            if (pullRequestTitle.match(pattern)) {
+                console.log("Title matches conventional commit. Good job.");
+            } else {
+                var message = '@${{ github.event.pull_request.user.login }} Pull request title does not match conventional commit format. Please edit the PR title and the pipeline will run again.';
+                github.rest.issues.createComment({
+                    issue_number: context.issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: message
+                })
+                core.setFailed(message)
+            }
+  build:
+    runs-on: self-hosted
+    name: Gradle build
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'graalvm'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+
+    - name: Build with Gradle Wrapper
+      run: ./gradlew build
+
+  dependency-submission:
+    runs-on: self-hosted
+    name: Gradle dependency submission
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'graalvm'
+
+    - name: Generate and submit dependency graph
+      uses: gradle/actions/dependency-submission@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
