@@ -1,7 +1,8 @@
 plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
-    id("io.micronaut.application") version "4.4.4"
-    id("io.micronaut.aot") version "4.4.4"
+    id("io.micronaut.application") version "4.5.4"
+    id("io.micronaut.aot") version "4.5.4"
+    id("checkstyle")
 }
 
 version = "0.1"
@@ -20,14 +21,14 @@ dependencies {
     implementation("io.micronaut.security:micronaut-security")
     implementation("io.micronaut.security:micronaut-security-jwt")
     implementation("io.micronaut.security:micronaut-security-session")
-    implementation("io.micronaut.serde:micronaut-serde-jackson")
+    implementation("io.micronaut.serde:micronaut-serde-jackson:2.14.0")
     compileOnly("io.micronaut:micronaut-http-client")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("ch.qos.logback:logback-classic")
     testImplementation("io.micronaut:micronaut-http-client")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("org.junit.platform:junit-platform-suite-engine")
-    aotPlugins platform("io.micronaut.platform:micronaut-platform:4.7.3")
+    aotPlugins platform("io.micronaut.platform:micronaut-platform:4.9.0")
     aotPlugins("io.micronaut.security:micronaut-security-aot")
 }
 
@@ -70,4 +71,18 @@ tasks.named("dockerfileNative") {
     jdkVersion = "21"
 }
 
+checkstyle {
+    // Use a modern stable Checkstyle version
+    toolVersion = "10.17.0"
+    // Explicitly point to our configuration file
+    config = resources.text.fromFile("${rootDir}/config/checkstyle/checkstyle.xml")
+}
 
+tasks.withType(Checkstyle).configureEach {
+    // Do not fail the build initially; we can tighten later
+    ignoreFailures = false
+    reports {
+        xml.required.set(false)
+        html.required.set(true)
+    }
+}
