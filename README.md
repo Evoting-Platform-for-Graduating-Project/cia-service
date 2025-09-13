@@ -1,3 +1,36 @@
+# CIA
+
+This project uses Micronaut and Flyway for database migrations.
+
+## Flyway – how to use
+
+- Configure DB in src/main/resources/application.yml under datasources.default.
+- Flyway is enabled via flyway.datasources.default.enabled: true.
+- Migration files live in src/main/resources/db/migration (e.g., V1__init.sql).
+
+### Example Gradle commands
+
+- ./gradlew flywayInfo — show migration status
+- ./gradlew flywayMigrate — apply pending migrations
+- ./gradlew flywayValidate — validate checksum/history
+- ./gradlew flywayRepair — fix checksums and history issues
+- ./gradlew flywayClean — drop objects (use with caution in dev only)
+
+You can point to another environment profile (to resolve application-<env>.yml) with:
+
+- ./gradlew -Penv=dev flywayMigrate
+
+Or override DB credentials inline:
+
+- ./gradlew flywayMigrate -PDB_PASSWORD=secret
+
+### Placeholders
+
+Placeholders can be set in application.yml under flyway.datasources.default.placeholders or in build.gradle in the flyway {} block.
+Use them inside SQL like ${schema} or ${app_user}. See V1__init.sql for an example.
+
+---
+
 ## Micronaut 4.7.3 Documentation
 
 - [User Guide](https://docs.micronaut.io/4.7.3/guide/index.html)
@@ -25,7 +58,7 @@
 
 ## Feature junit-platform-suite-engine documentation
 
-- [https://junit.org/junit5/docs/current/user-guide/#junit-platform-suite-engine-setup](https://junit.org/junit5/docs/current/user-guide/#junit-platform-suite-engine-setup)
+- [https://junit.org/junit5/docs/current/humanUser-guide/#junit-platform-suite-engine-setup](https://junit.org/junit5/docs/current/humanUser-guide/#junit-platform-suite-engine-setup)
 
 ## Feature security documentation
 
@@ -53,6 +86,6 @@
 
 ## Feature junit-params documentation
 
-- [https://junit.org/junit5/docs/current/user-guide/#writing-tests-parameterized-tests](https://junit.org/junit5/docs/current/user-guide/#writing-tests-parameterized-tests)
+- [https://junit.org/junit5/docs/current/humanUser-guide/#writing-tests-parameterized-tests](https://junit.org/junit5/docs/current/humanUser-guide/#writing-tests-parameterized-tests)
 
 

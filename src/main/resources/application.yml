@@ -1,0 +1,101 @@
+# Application configuration in YAML (migrated from application.properties)
+
+micronaut:
+  application:
+    name: cia
+
+  security:
+    enabled: true
+    authentication: bearer
+
+    # Enable /login endpoint (not used by our custom /auth/login, but ok to keep)
+    endpoints:
+      login:
+        enabled: true
+
+    token:
+      # Ensure roles claim name
+      roles-name: roles
+
+      jwt:
+        # JWT Signature secret (for demo/dev only). In production use env var/keystore.
+        signatures:
+          secret:
+            generator:
+              secret: "pleaseChangeThisSecretKeyForJWT-AtLeast32BytesLong!!1234"
+            validation:
+              secret: "pleaseChangeThisSecretKeyForJWT-AtLeast32BytesLong!!1234"
+
+        # Optional: configure JWT generator defaults
+        generator:
+          refresh-token:
+            enabled: true
+
+# Token lifetimes for custom AuthService (seconds)
+security:
+  jwt:
+    access-token:
+      expiration-seconds: 60000
+    refresh-token:
+      expiration-seconds: 600000
+
+datasources:
+  default:
+    url: jdbc:postgresql://localhost:5432/appdb
+    username: appuser
+    password: ${DB_PASSWORD:secretpassword}
+    driverClassName: org.postgresql.Driver
+    maximum-pool-size: 20
+    schema: public
+
+jpa:
+  default:
+    properties:
+      jakarta:
+        persistence:
+          schema-generation:
+            database:
+              action: none
+      hibernate:
+        hbm2ddl:
+          auto: none
+        show_sql: true
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+hikaricp:
+  default:
+    maximumPoolSize: 20
+    minimumIdle: 5
+    connectionTimeout: 30000
+    idleTimeout: 600000
+    maxLifetime: 1800000
+    poolName: HikariCP
+cia:
+  self-host: http://localhost:8080
+  self-host-callback: ${cia.self-host}/auth/callback
+  main-realm:
+    systemName: admin
+    name: Administration
+    admin-user:
+      username: admin
+      password: $argon2id$v=19$m=1048576,t=5,p=4$6557sz/z3GLpsPqj3lz7UQ$EQ9nwrAXTJg99jvw6OQxReK8M0pa18fwp9FjyXW1rAs
+      enabled: true
+
+# Disable Liquibase and enable Flyway
+flyway:
+  datasources:
+    default:
+      enabled: true
+      # Default location classpath:db/migration; keep explicit for clarity
+      locations: classpath:db/migration
+      # Example placeholders that can be used in SQL migrations as ${schema}, ${app_user}
+      placeholder-replacement: true
+      placeholders:
+        schema:  ${datasources.default.schema}
+        appuser: ${datasources.default.username}
+        admin-user-username: ${cia.main-realm.admin-user.username}
+        admin-user-password: ${cia.main-realm.admin-user.password}
+        self-client-host: ${cia.self-host}
+        self-client-callback: ${cia.self-host-callback}
+

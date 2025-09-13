@@ -1,0 +1,12 @@
+micronaut:
+  application:
+    name: cia-test
+
+datasources:
+  default:
+    enabled: false
+
+flyway:
+  datasources:
+    default:
+      enabled: false
