@@ -103,9 +103,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("org.junit.platform:junit-platform-suite-engine")
     aotPlugins("io.micronaut.security:micronaut-security-aot")
-    implementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.9.3"))
-    annotationProcessor(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.9.3"))
-    testImplementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.9.3"))
+    implementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
+    annotationProcessor(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
+    testImplementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
 
     // JPA + Hibernate
     implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
