@@ -162,7 +162,7 @@ tasks.named("dockerfileNative") {
 
 checkstyle {
     // Use a modern stable Checkstyle version
-    toolVersion = "10.17.0"
+    toolVersion = "12.1.0"
     // Explicitly point to our configuration file
     config = resources.text.fromFile("${rootDir}/config/checkstyle/checkstyle.xml")
 }
