@@ -1,8 +1,79 @@
+import org.yaml.snakeyaml.Yaml
+
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "org.yaml:snakeyaml:2.2"
+    }
+}
+
 plugins {
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "8.3.5"
     id("io.micronaut.application") version "4.5.4"
     id("io.micronaut.aot") version "4.5.4"
+    id("org.flywaydb.flyway") version "11.12.0"
     id("checkstyle")
+}
+
+
+// Funkcje pomocnicze do wczytania i scalania YAML
+ext.loadYaml = { File f ->
+    if (!f.exists()) return [:]
+    def Yaml = org.yaml.snakeyaml.Yaml
+    def yaml = new Yaml()
+    def data = yaml.load(f.getText("UTF-8"))
+    return (data instanceof Map) ? data : [:]
+}
+
+ext.deepMerge = { Map base, Map override ->
+    override.each { k, v ->
+        if (v instanceof Map && base[k] instanceof Map) {
+            deepMerge(base[k] as Map, v as Map)
+        } else {
+            base[k] = v
+        }
+    }
+    return base
+}
+
+// Wczytaj application.yml + opcjonalny profil (MICRONAUT_ENVIRONMENTS lub -Penv=...)
+def envProfile = (project.findProperty("env") ?: System.getenv("MICRONAUT_ENVIRONMENTS")) as String
+def baseCfg = ext.loadYaml(file("src/main/resources/application.yml"))
+if (envProfile) {
+    def profFile = file("src/main/resources/application-${envProfile}.yml")
+    if (profFile.exists()) {
+        def profCfg = ext.loadYaml(profFile)
+        baseCfg = ext.deepMerge(baseCfg as Map, profCfg as Map)
+    }
+}
+
+// Groovy/Gradle — funkcja do zastępowania ${KEY:default} w tekście
+def resolvePlaceholders = { String input ->
+    if (input == null) return null
+    input.replaceAll(/\$\{([^}:]+)(?::([^}]*))?}/) { all, key, defVal ->
+        // 1) właściwość Gradle (-PKEY=...), 2) zmienna środowiskowa, 3) default
+        def fromProp = project.hasProperty(key) ? project.property(key)?.toString() : null
+        def fromEnv  = System.getenv(key)
+        (fromProp ?: fromEnv ?: defVal ?: "")
+    }
+}
+
+// Wyciągnij konfigurację datasources.default
+def ds = ((baseCfg["datasources"] instanceof Map) ? baseCfg["datasources"]["default"] : null) as Map
+if (!ds) {
+    throw new GradleException("Brak sekcji datasources.default w application.yml (lub application-${envProfile}.yml).")
+}
+def dbUrl    = resolvePlaceholders((ds["url"] ?: "").toString())
+def dbUser   = resolvePlaceholders((ds["username"] ?: "").toString())
+def dbPass   = resolvePlaceholders((ds["password"] ?: "").toString())
+def dbDriver = resolvePlaceholders((ds["driverClassName"] ?: "org.postgresql.Driver").toString())
+def dbSchema = resolvePlaceholders((ds["schema"] ?: ds["defaultSchema"] ?: "public").toString())
+
+if (!dbUrl || !dbUser) {
+    throw new GradleException("Niekompletna konfiguracja datasources.default: wymagane 'url' i 'username'.")
 }
 
 version = "0.1"
@@ -21,15 +92,33 @@ dependencies {
     implementation("io.micronaut.security:micronaut-security")
     implementation("io.micronaut.security:micronaut-security-jwt")
     implementation("io.micronaut.security:micronaut-security-session")
-    implementation("io.micronaut.serde:micronaut-serde-jackson:2.14.0")
+    implementation("io.micronaut:micronaut-http-server-netty")
+    implementation("io.micronaut.serde:micronaut-serde-jackson")
+    implementation("de.mkammerer:argon2-jvm:2.12")
     compileOnly("io.micronaut:micronaut-http-client")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("ch.qos.logback:logback-classic")
+    runtimeOnly("org.yaml:snakeyaml")
     testImplementation("io.micronaut:micronaut-http-client")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("org.junit.platform:junit-platform-suite-engine")
-    aotPlugins platform("io.micronaut.platform:micronaut-platform:4.9.0")
     aotPlugins("io.micronaut.security:micronaut-security-aot")
+    implementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.9.3"))
+    annotationProcessor(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.9.3"))
+    testImplementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.9.3"))
+
+    // JPA + Hibernate
+    implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
+    implementation("org.hibernate.orm:hibernate-core:7.1.0.Final")
+
+    // JDBC + pool
+    implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+    implementation("org.postgresql:postgresql:42.7.7")
+
+    // Flyway runtime (optional; Gradle plugin already provides tasks)
+    implementation("io.micronaut.flyway:micronaut-flyway:7.8.0")
+    implementation("org.flywaydb:flyway-core:11.12.0")
+    implementation("org.flywaydb:flyway-database-postgresql")
 }
 
 
@@ -76,13 +165,4 @@ checkstyle {
     toolVersion = "10.17.0"
     // Explicitly point to our configuration file
     config = resources.text.fromFile("${rootDir}/config/checkstyle/checkstyle.xml")
-}
-
-tasks.withType(Checkstyle).configureEach {
-    // Do not fail the build initially; we can tighten later
-    ignoreFailures = false
-    reports {
-        xml.required.set(false)
-        html.required.set(true)
-    }
 }
