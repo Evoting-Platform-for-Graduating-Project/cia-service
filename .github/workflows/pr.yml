@@ -26,7 +26,7 @@ jobs:
 
           target_branch=${GITHUB_BASE_REF}
           echo "target branch: $target_branch"
-          dev_regex="^(fix|feat|refactor|style)/.*$"
+          dev_regex="^(fix|feat|refactor|style|dependabot)/.*$"
 
           if [[ "$branch_name" =~ $dev_regex ]]; then
             echo "Branch name matches with regex pattern."
@@ -41,7 +41,7 @@ jobs:
           script: |
             const pullRequestTitle = context.payload.pull_request.title;
             console.log(`Pull request title: ${pullRequestTitle}`);
-            const pattern = /^(feat|fix|refactor|style): .{1,50}/;
+            const pattern = /^((feat|fix|refactor|style):|(Bump )) .{1,50}/;
 
             if (pullRequestTitle.match(pattern)) {
                 console.log("Title matches conventional commit. Good job.");
