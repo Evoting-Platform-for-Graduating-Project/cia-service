@@ -124,7 +124,7 @@ dependencies {
 
     // JPA + Hibernate
     implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
-    implementation("org.hibernate.orm:hibernate-core:7.1.0.Final")
+    implementation("org.hibernate.orm:hibernate-core:7.1.5.Final")
 
     // JDBC + pool
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
