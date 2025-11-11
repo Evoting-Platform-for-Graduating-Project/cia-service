@@ -132,7 +132,7 @@ dependencies {
 
     // Flyway runtime (optional; Gradle plugin already provides tasks)
     implementation("io.micronaut.flyway:micronaut-flyway:7.9.0")
-    implementation("org.flywaydb:flyway-core:11.15.0")
+    implementation("org.flywaydb:flyway-core:11.17.0")
     implementation("org.flywaydb:flyway-database-postgresql")
 }
 
