@@ -9,14 +9,16 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.security.authentication.AuthenticationException;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.evoting.api.cia.model.LoginRequestDto;
 import org.evoting.cia.domain.auth.model.FullLoginRequest;
 import org.evoting.cia.domain.auth.model.TokenPair;
 import org.evoting.cia.domain.auth.service.IAuthService;
@@ -25,9 +27,10 @@ import org.evoting.cia.infrastracture.data.db.entity.User;
 import org.evoting.cia.infrastracture.data.db.repository.ClientRepository;
 import org.evoting.cia.infrastracture.data.db.repository.UserRepository;
 import org.evoting.cia.security.password.Argon2PasswordEncoder;
+import org.jspecify.annotations.NonNull;
 
 @Singleton
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class AuthService implements IAuthService {
 
     public static final String FAKE_PASSWORD =
@@ -50,50 +53,23 @@ public class AuthService implements IAuthService {
 
     @Override
     public User authenticate(FullLoginRequest request) {
-        if (request == null || request.getPassword() == null || request.getPassword().isBlank()) {
-            maskAuthenticationException("request");
+        validateRequestContainsData(request);
+        LoginRequestDto requestData = request.getRequest();
+
+        Client client = verifyClient(request, requestData);
+
+        User user = verifyUser(requestData, client);
+
+        if (!passwordEncoder.matches(requestData.getPassword(), user.getPassword())) {
             throw new AuthenticationException();
         }
 
-        if (request.getHost() == null || request.getHost().isBlank()) {
-            maskAuthenticationException(request.getPassword());
-            throw new AuthenticationException();
-        }
-
-        Optional<Client> clientOpt = clientRepository.findByHostsContainsIgnoreCaseAndRealm_Name(
-            request.getHost(),
-            request.getRealm()
-        );
-
-        if (clientOpt.isEmpty()) {
-            maskAuthenticationException(request.getPassword());
-            throw new AuthenticationException();
-        }
-
-        if (request.getUsername() == null || request.getUsername().isBlank()) {
-            maskAuthenticationException(request.getPassword());
-            throw new AuthenticationException();
-        }
-
-        Optional<User> userOpt = userRepository.findByUsernameAndRealm(
-            request.getUsername(),
-            clientOpt.get().getRealm()
-        );
-
-        if (userOpt.isEmpty()) {
-            maskAuthenticationException(request.getPassword());
-            throw new AuthenticationException();
-        }
-
-        if (!passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {
-            throw new AuthenticationException();
-        }
-
-        return userOpt.get();
+        return user;
     }
 
-    private void maskAuthenticationException(String password) {
-        passwordEncoder.matches(password, FAKE_PASSWORD);
+    @Override
+    public TokenPair issueTokens(FullLoginRequest request) throws JOSEException {
+        return issueTokensForUser(authenticate(request));
     }
 
     @Override
@@ -108,31 +84,90 @@ public class AuthService implements IAuthService {
     }
 
     @Override
-    public Optional<TokenPair> refreshUsing(String refreshToken) {
-        try {
-            SignedJWT jwt = SignedJWT.parse(refreshToken);
-            if (!jwt.verify(new MACVerifier(secret.getBytes()))) {
-                return Optional.empty();
-            }
-            JWTClaimsSet claims = jwt.getJWTClaimsSet();
-            String tokenType = claims.getStringClaim("tokenType");
-            Date exp = claims.getExpirationTime();
-            if (!"refresh".equals(tokenType) || exp == null || exp.before(new Date())) {
-                return Optional.empty();
-            }
-            String subject = claims.getSubject();
-            if (subject == null || subject.isBlank()) {
-                return Optional.empty();
-            }
-            Set<String> roles = claims.getStringListClaim("roles").stream()
-                .collect(Collectors.toSet());
-            String access = createAccessToken(subject, roles);
-            String refresh = createRefreshToken(subject, roles);
-
-            return Optional.of(new TokenPair(access, refresh, "Bearer", accessTokenTtlSeconds));
-        } catch (ParseException | JOSEException e) {
-            return Optional.empty();
+    public TokenPair refreshing(String refreshToken) throws JOSEException, ParseException {
+        SignedJWT jwt = SignedJWT.parse(refreshToken);
+        if (!jwt.verify(new MACVerifier(secret.getBytes()))) {
+            throw new AuthenticationException();
         }
+        JWTClaimsSet claims = jwt.getJWTClaimsSet();
+        String tokenType = claims.getStringClaim("tokenType");
+        Date exp = claims.getExpirationTime();
+        if (!"refresh".equals(tokenType) || exp == null || exp.before(new Date())) {
+            throw new AuthenticationException();
+        }
+        String subject = claims.getSubject();
+        if (subject == null || subject.isBlank()) {
+            throw new AuthenticationException();
+        }
+        Set<String> roles = new HashSet<>(claims.getStringListClaim("roles"));
+        String access = createAccessToken(subject, roles);
+        String refresh = createRefreshToken(subject, roles);
+
+        return new TokenPair(
+            access,
+            refresh,
+            "Bearer",
+            accessTokenTtlSeconds
+        );
+    }
+
+    private @NonNull User verifyUser(LoginRequestDto requestData, Client client) {
+        Optional<User> userOpt = userRepository.findByUsernameAndRealm(
+            requestData.getUsername(),
+            client.getRealm()
+        );
+
+        return userOpt.orElseThrow(() -> {
+            maskAuthenticationException(requestData.getPassword());
+            return new AuthenticationException();
+        });
+    }
+
+    private @NonNull Client verifyClient(
+        FullLoginRequest request,
+        LoginRequestDto requestData
+    ) {
+        Optional<Client> clientOpt = clientRepository.findByHostsContainsIgnoreCaseAndRealm_Name(
+            request.getHost(),
+            request.getRealm()
+        );
+
+        return clientOpt.orElseThrow(() -> {
+            maskAuthenticationException(requestData.getPassword());
+            return new AuthenticationException();
+        });
+    }
+
+    private void validateRequestContainsData(FullLoginRequest request) {
+        if (request == null) {
+            throw new AuthenticationException();
+        }
+
+        LoginRequestDto requestData =  request.getRequest();
+
+        if (requestData == null) {
+            throw new AuthenticationException();
+        }
+
+        if (requestData.getPassword() == null || requestData.getPassword().isBlank()) {
+            throw new AuthenticationException();
+        }
+
+        if (requestData.getUsername() == null || requestData.getUsername().isBlank()) {
+            throw new AuthenticationException();
+        }
+
+        if (request.getRealm() == null || request.getRealm().isBlank()) {
+            throw new AuthenticationException();
+        }
+
+        if (request.getHost() == null || request.getHost().isBlank()) {
+            throw new AuthenticationException();
+        }
+    }
+
+    private void maskAuthenticationException(String password) {
+        passwordEncoder.matches(password, FAKE_PASSWORD);
     }
 
     private String createAccessToken(
