@@ -1,6 +1,10 @@
-# Application configuration in YAML (migrated from application.properties)
-
 micronaut:
+  executors:
+    io:
+      type: fixed
+      virtual: true
+    blocking:
+      virtual: true
   application:
     name: cia
 
@@ -8,17 +12,14 @@ micronaut:
     enabled: true
     authentication: bearer
 
-    # Enable /login endpoint (not used by our custom /auth/login, but ok to keep)
     endpoints:
       login:
         enabled: true
 
     token:
-      # Ensure roles claim name
       roles-name: roles
 
       jwt:
-        # JWT Signature secret (for demo/dev only). In production use env var/keystore.
         signatures:
           secret:
             generator:
@@ -26,12 +27,25 @@ micronaut:
             validation:
               secret: "pleaseChangeThisSecretKeyForJWT-AtLeast32BytesLong!!1234"
 
-        # Optional: configure JWT generator defaults
         generator:
           refresh-token:
             enabled: true
+management:
+  server:
+    port: 9090
+    context-path: /
+  endpoints:
+    all:
+      enabled: true
+      sensitive: false
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers,threaddump,env,beans
+  endpoint:
+    health:
+      sensitive: false
+      details-visible: ANONYMOUS
 
-# Token lifetimes for custom AuthService (seconds)
 security:
   jwt:
     access-token:
@@ -82,14 +96,11 @@ cia:
       password: $argon2id$v=19$m=1048576,t=5,p=4$6557sz/z3GLpsPqj3lz7UQ$EQ9nwrAXTJg99jvw6OQxReK8M0pa18fwp9FjyXW1rAs
       enabled: true
 
-# Disable Liquibase and enable Flyway
 flyway:
   datasources:
     default:
       enabled: true
-      # Default location classpath:db/migration; keep explicit for clarity
       locations: classpath:db/migration
-      # Example placeholders that can be used in SQL migrations as ${schema}, ${app_user}
       placeholder-replacement: true
       placeholders:
         schema:  ${datasources.default.schema}

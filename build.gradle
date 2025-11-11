@@ -1,3 +1,4 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 import org.yaml.snakeyaml.Yaml
 
 buildscript {
@@ -6,7 +7,7 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath "org.yaml:snakeyaml:2.2"
+        classpath "org.yaml:snakeyaml:2.5"
     }
 }
 
@@ -16,6 +17,7 @@ plugins {
     id("io.micronaut.aot") version "4.6.0"
     id("org.flywaydb.flyway") version "11.12.0"
     id("checkstyle")
+    id("org.openapi.generator") version "7.9.0"
 }
 
 
@@ -106,18 +108,31 @@ dependencies {
     implementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
     annotationProcessor(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
     testImplementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
+    implementation("io.micronaut.openapi:micronaut-openapi:6.19.1")
+    annotationProcessor("io.micronaut.openapi:micronaut-openapi:6.19.1")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.39")
+    runtimeOnly("io.micronaut:micronaut-management:4.10.7")
+    implementation("jakarta.ws.rs:jakarta.ws.rs-api:4.0.0")
+    implementation("org.eclipse.microprofile.rest.client:microprofile-rest-client-api:4.0")
+    compileOnly("javax.ws.rs:javax.ws.rs-api:2.1.1")
+    implementation("jakarta.json.bind:jakarta.json.bind-api:3.0.1")
+    implementation("org.glassfish.jersey.core:jersey-client:3.1.11")
+    implementation("org.glassfish.jersey.inject:jersey-hk2:3.1.11")
+    implementation("org.glassfish.jersey.media:jersey-media-json-jackson:3.1.11")
+    implementation("org.glassfish.jersey.media:jersey-media-multipart:3.1.11")
+    implementation("org.openapitools:jackson-databind-nullable:0.2.8")
 
     // JPA + Hibernate
     implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
-    implementation("org.hibernate.orm:hibernate-core:7.1.0.Final")
+    implementation("org.hibernate.orm:hibernate-core:7.1.5.Final")
 
     // JDBC + pool
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
-    implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.postgresql:postgresql:42.7.8")
 
     // Flyway runtime (optional; Gradle plugin already provides tasks)
-    implementation("io.micronaut.flyway:micronaut-flyway:7.8.0")
-    implementation("org.flywaydb:flyway-core:11.12.0")
+    implementation("io.micronaut.flyway:micronaut-flyway:7.9.0")
+    implementation("org.flywaydb:flyway-core:11.15.0")
     implementation("org.flywaydb:flyway-database-postgresql")
 }
 
@@ -161,8 +176,74 @@ tasks.named("dockerfileNative") {
 }
 
 checkstyle {
-    // Use a modern stable Checkstyle version
-    toolVersion = "10.17.0"
-    // Explicitly point to our configuration file
+    toolVersion = "12.1.0"
     config = resources.text.fromFile("${rootDir}/config/checkstyle/checkstyle.xml")
+}
+
+def openapiOut = layout.buildDirectory.dir("generated/openapi")
+
+tasks.named("checkstyleMain").configure {
+    setSource(files("src/main/java"))
+    exclude("${buildDir.name}/generated/**", "${buildDir.name}/generated/openapi/**")
+}
+tasks.named("checkstyleTest").configure {
+    setSource(files("src/test/java"))
+    exclude("${buildDir.name}/generated/**", "${buildDir.name}/generated/openapi/**")
+}
+
+def commonOpenApiOptions = [
+        generatorName          : "jaxrs-spec",
+        interfaceOnly          : "true",
+        interfaceDefinition    : "true",
+        useTags                : "false",
+        useJakartaEe           : "true",
+        hideGenerationTimestamp: "true",
+        dateLibrary            : "java8",
+        reactive               : "false",
+        apiNameSuffix          : "Api",
+        returnResponse         : "false",
+        useSwaggerAnnotations  : "false"
+]
+
+tasks.register("openApiGenerateCia", GenerateTask) {
+    generatorName.set("jaxrs-spec")
+    inputSpec.set("$projectDir/src/main/resources/openapi/cia-api.yml")
+    outputDir.set(openapiOut.get().asFile.absolutePath + "/cia")
+    apiPackage.set("org.evoting.api.cia")
+    modelPackage.set("org.evoting.api.cia.model")
+    invokerPackage.set("org.evoting.api.cia.invoker")
+    configOptions.set(commonOpenApiOptions)
+    apiNameSuffix.set("Api")
+    modelNameSuffix.set("Dto")
+}
+
+tasks.register("openApiGenerateCiaMgmt", GenerateTask) {
+    generatorName.set("jaxrs-spec")
+    inputSpec.set("$projectDir/src/main/resources/openapi/cia-management-api.yml")
+    outputDir.set(openapiOut.get().asFile.absolutePath + "/cia-mgmt")
+    apiPackage.set("org.evoting.api.cia.mgmt")
+    modelPackage.set("org.evoting.api.cia.mgmt.model")
+    invokerPackage.set("org.evoting.api.cia.mgmt.invoker")
+    configOptions.set(commonOpenApiOptions)
+    apiNameSuffix.set("Api")
+    modelNameSuffix.set("Dto")
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir("$buildDir/generated/openapi/cia/src/gen/java")
+            srcDir("$buildDir/generated/openapi/cia-mgmt/src/gen/java")
+        }
+    }
+}
+
+tasks.named("compileJava") {
+    dependsOn("openApiGenerateCia", "openApiGenerateCiaMgmt")
+}
+
+tasks.named("clean") {
+    doFirst {
+        delete("$buildDir/generated/openapi")
+    }
 }
