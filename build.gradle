@@ -105,13 +105,13 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("org.junit.platform:junit-platform-suite-engine")
     aotPlugins("io.micronaut.security:micronaut-security-aot")
-    implementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.2"))
-    annotationProcessor(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.2"))
-    testImplementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.2"))
-    implementation("io.micronaut.openapi:micronaut-openapi:6.19.3")
-    annotationProcessor("io.micronaut.openapi:micronaut-openapi:6.19.3")
-    implementation("io.swagger.core.v3:swagger-annotations:2.2.40")
-    runtimeOnly("io.micronaut:micronaut-management:4.10.8")
+    implementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
+    annotationProcessor(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
+    testImplementation(enforcedPlatform("io.micronaut.platform:micronaut-platform:4.10.0"))
+    implementation("io.micronaut.openapi:micronaut-openapi:6.19.1")
+    annotationProcessor("io.micronaut.openapi:micronaut-openapi:6.19.1")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.39")
+    runtimeOnly("io.micronaut:micronaut-management:4.10.7")
     implementation("jakarta.ws.rs:jakarta.ws.rs-api:4.0.0")
     implementation("org.eclipse.microprofile.rest.client:microprofile-rest-client-api:4.0")
     compileOnly("javax.ws.rs:javax.ws.rs-api:2.1.1")
@@ -124,15 +124,15 @@ dependencies {
 
     // JPA + Hibernate
     implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
-    implementation("org.hibernate.orm:hibernate-core:7.1.10.Final")
+    implementation("org.hibernate.orm:hibernate-core:7.1.5.Final")
 
     // JDBC + pool
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
     implementation("org.postgresql:postgresql:42.7.8")
 
     // Flyway runtime (optional; Gradle plugin already provides tasks)
-    implementation("io.micronaut.flyway:micronaut-flyway:7.9.2")
-    implementation("org.flywaydb:flyway-core:11.17.1")
+    implementation("io.micronaut.flyway:micronaut-flyway:7.9.0")
+    implementation("org.flywaydb:flyway-core:11.17.0")
     implementation("org.flywaydb:flyway-database-postgresql")
 }
 
