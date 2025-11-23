@@ -9,3 +9,19 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+
+    groups:
+      major-dependencies:
+        applies-to: version-updates
+        update-types:
+          - "major"
+
+      minor-dependencies:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+
+      patch-dependencies:
+        applies-to: version-updates
+        update-types:
+          - "patch"
